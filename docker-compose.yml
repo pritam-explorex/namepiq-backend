@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: namepiq
+      POSTGRES_PASSWORD: namepiq
+      POSTGRES_DB: namepiq
+    ports:
+      - "5432:5432"
+    volumes:
+      - namepiq_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U namepiq -d namepiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: development
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://namepiq:namepiq@postgres:5432/namepiq?sslmode=disable
+      CORS_ORIGINS: http://localhost:3000
+      JWT_SECRET: dev-only-change-me
+      MIGRATIONS_DIR: /app/migrations
+      APP_BASE_URL: http://localhost:3000
+      API_BASE_URL: http://localhost:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  namepiq_pg:
