@@ -37,3 +37,7 @@ func (s *Store) Close() {
 		s.Pool.Close()
 	}
 }
+
+func (s *Store) Ping(ctx context.Context) error {
+	return s.Pool.Ping(ctx)
+}

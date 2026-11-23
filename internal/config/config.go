@@ -19,12 +19,23 @@ type Config struct {
 	AccessTokenTTL   time.Duration
 	AppBaseURL       string
 	APIBaseURL       string
-	OpenSRSUsername  string
-	OpenSRSAPIKey    string
-	OpenSRSEndpoint  string
-	RazorpayKeyID    string
-	RazorpayKeySecret string
+	OpenSRSUsername       string
+	OpenSRSAPIKey         string
+	OpenSRSEndpoint       string
+	OpenSRSMaxConcurrent  int
+	RazorpayKeyID         string
+	RazorpayKeySecret     string
 	RazorpayWebhookSecret string
+	ResendAPIKey          string
+	ResendFromEmail       string
+	TelegramBotToken      string
+	TelegramChatID        string
+	USDINRRate               float64
+	RetailMarkupPercent      float64
+	DisplayDiscountPercent   float64
+	AdminEmails              []string
+	// E2EMailCapture enables GET /v1/test/last-email for Playwright (never in production).
+	E2EMailCapture bool
 }
 
 func Load() (Config, error) {
@@ -41,24 +52,37 @@ func Load() (Config, error) {
 		AccessTokenTTL:  getDuration("ACCESS_TOKEN_TTL", 24*time.Hour),
 		AppBaseURL:      getEnv("APP_BASE_URL", "http://localhost:3000"),
 		APIBaseURL:      getEnv("API_BASE_URL", "http://localhost:8080"),
-		OpenSRSUsername: getEnv("OPENSRS_USERNAME", ""),
-		OpenSRSAPIKey:   getEnv("OPENSRS_API_KEY", ""),
-		OpenSRSEndpoint: getEnv("OPENSRS_ENDPOINT", "https://horizon.opensrs.net:55443"),
-		RazorpayKeyID:   getEnv("RAZORPAY_KEY_ID", ""),
-		RazorpayKeySecret: getEnv("RAZORPAY_KEY_SECRET", ""),
+		OpenSRSUsername:      getEnv("OPENSRS_USERNAME", ""),
+		OpenSRSAPIKey:        getEnv("OPENSRS_API_KEY", ""),
+		OpenSRSEndpoint:      getEnv("OPENSRS_ENDPOINT", "https://horizon.opensrs.net:55443"),
+		OpenSRSMaxConcurrent: getInt("OPENSRS_MAX_CONCURRENT", 2),
+		RazorpayKeyID:         getEnv("RAZORPAY_KEY_ID", ""),
+		RazorpayKeySecret:     getEnv("RAZORPAY_KEY_SECRET", ""),
 		RazorpayWebhookSecret: getEnv("RAZORPAY_WEBHOOK_SECRET", ""),
+		ResendAPIKey:          getEnv("RESEND_API_KEY", ""),
+		ResendFromEmail:       getEnv("RESEND_FROM_EMAIL", "Namepiq <noreply@namepiq.com>"),
+		TelegramBotToken:      getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:        getEnv("TELEGRAM_CHAT_ID", ""),
+		USDINRRate:             getFloat("USD_INR_RATE", 84),
+		RetailMarkupPercent:    getFloat("RETAIL_MARKUP_PERCENT", 0),
+		DisplayDiscountPercent: getFloat("DISPLAY_DISCOUNT_PERCENT", 0),
+		AdminEmails:            splitCSV(strings.ToLower(getEnv("ADMIN_EMAILS", ""))),
+		E2EMailCapture:         getEnv("E2E_MAIL_CAPTURE", "") == "1" || getEnv("E2E_MAIL_CAPTURE", "") == "true",
 	}
 
 	if cfg.Env == "production" && cfg.JWTSecret == "dev-only-change-me" {
 		return Config{}, fmt.Errorf("JWT_SECRET must be set in production")
+	}
+	if cfg.Env == "production" && cfg.E2EMailCapture {
+		return Config{}, fmt.Errorf("E2E_MAIL_CAPTURE must not be enabled in production")
 	}
 
 	return cfg, nil
 }
 
 func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return strings.Trim(v, `"'`)
 	}
 	return fallback
 }
@@ -76,6 +100,30 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func getFloat(key string, fallback float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return fallback
+	}
+	return f
+}
+
+func getInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }
 
 func splitCSV(v string) []string {

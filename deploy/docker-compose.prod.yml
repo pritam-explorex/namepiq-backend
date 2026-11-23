@@ -1,0 +1,45 @@
+# Oracle Always Free VM — API + Postgres (bind localhost only; Cloudflare Tunnel fronts HTTPS).
+# Usage on the VM:
+#   cp .env.prod.example .env.prod   # fill secrets
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-namepiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-namepiq}
+    volumes:
+      - namepiq_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No host port publish — API reaches it on the compose network only.
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env.prod
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-namepiq}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namepiq}?sslmode=disable
+      MIGRATIONS_DIR: /app/migrations
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://namepiq.com,https://www.namepiq.com}
+      APP_BASE_URL: ${APP_BASE_URL:-https://namepiq.com}
+      API_BASE_URL: ${API_BASE_URL:-https://api.namepiq.com}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  namepiq_pg:

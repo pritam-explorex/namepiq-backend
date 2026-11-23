@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "namepiq": {
+      "command": "go",
+      "args": ["run", "./cmd/mcp"],
+      "cwd": "/Users/pkhan/Documents/namepiq-backend",
+      "env": {
+        "NAMEPIQ_API_BASE": "http://localhost:8080",
+        "NAMEPIQ_TOKEN": ""
+      }
+    }
+  }
+}

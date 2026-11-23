@@ -1,0 +1,11 @@
+# On the VM after: cloudflared tunnel create namepiq-api
+# Then: cloudflared tunnel route dns <TUNNEL_ID> api.namepiq.com
+# Install: sudo cloudflared --config /etc/cloudflared/config.yml service install
+#
+# tunnel: <TUNNEL_ID>
+# credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: api.namepiq.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404

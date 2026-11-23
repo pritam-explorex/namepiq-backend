@@ -6,3 +6,9 @@ bin/
 .env
 .env.*
 !.env.example
+!deploy/.env.prod.example
+.cloudflared-stage.token
+.cloudflared/
+
+# OCI local inventory (IDs, IPs)
+deploy/oci-ids.env
